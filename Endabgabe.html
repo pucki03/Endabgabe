@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Seiten-Favicon -->
+  <link rel="icon" href="data:,">
+  <!-- Zeichenkodierung -->
+  <meta charset="utf-8" />
+  <!-- Seitentitel und Beschreibung -->
+  <title>CC2 Abgabe</title>
+  <meta name="description" content="Multiplayer VR Minecraft-Erlebnis im Browser mit A-Frame und WebSockets.">
+  <!-- WebSockets-Client-Bibliothek einbinden -->
+  <script src="https://cdn.jsdelivr.net/npm/web-rooms-client@0.3.1/dist/web-rooms-client.umd.js"></script>
+  <!-- A-Frame für WebVR einbinden -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <!-- Three.js für A-Frame einbinden -->
+  <script src="https://unpkg.com/three@0.157.0/build/three.min.js"></script>
+  <!-- Protokollierung, wenn DOM vollständig geladen ist -->
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('[HTML] Seite und Skripte geladen');
+    });
+  </script>
+  <style>
+    /* Ränder zurücksetzen und vollen Viewport für Canvas */
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    }
+    /* Style für Scoreboard-Container */
+    #scoreboard {
+      position: fixed; /* Immer in der Ecke fixiert */
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 10px;
+      font-family: sans-serif;
+      border-radius: 4px;
+      z-index: 999;    /* Über der Szene anzeigen */
+      max-width: 200px;
+    }
+    /* Überschrift des Scoreboards */
+    #scoreboard h3 {
+      margin: 0 0 5px 0;
+      font-size: 1em;
+    }
+    /* Styling der Score-Liste */
+    #scoreboard ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 0.9em;
+    }
+    #scoreboard li {
+      margin-bottom: 3px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Fallback-Meldung, wenn JavaScript deaktiviert ist -->
+  <noscript>
+    <div style="color: red; background: white; padding: 1em; text-align: center;">
+      Diese Anwendung benötigt JavaScript. Bitte aktiviere es in deinem Browser.
+    </div>
+  </noscript>
+
+  <!-- UI für das Scoreboard -->
+  <div id="scoreboard" aria-label="Punkteübersicht">
+    <h3>Scoreboard</h3>
+    <ul id="scores"></ul>
+  </div>
+
+  <!-- Hauptszene mit game-manager-Komponente -->
+  <a-scene embedded vr-mode-ui="enabled: true" game-manager>
+    <!-- Zu ladende Assets -->
+    <a-assets>
+      <a-asset-item id="minecraftModel" src="models/minecraft.glb"></a-asset-item>
+      <img id="imgDay" src="models/day.jpg">
+      <img id="imgNight" src="models/night.jpg">
+    </a-assets>
+
+    <!-- Tages-Skybox -->
+    <a-sky id="skyDay" src="#imgDay" material="shader: flat; side: back"></a-sky>
+    <!-- Nacht-Skybox, zunächst transparent -->
+    <a-sky id="skyNight" src="#imgNight" material="shader: flat; side: back; opacity: 0"></a-sky>
+
+    <!-- Sonne für Blick-Interaktion -->
+    <a-entity id="sun"
+              geometry="primitive: sphere; radius: 50"
+              material="color: yellow; emissive: yellow"
+              position="0 500 100"></a-entity>
+
+    <!-- Kamera-Rig mit Steuerung und benutzerdefinierten Components -->
+    <a-entity id="cameraRig" position="0 140 5">
+      <a-entity id="head"
+                camera
+                wasd-controls
+                look-controls="pointerLockEnabled: true"
+                vertical-move
+                raycaster="objects: .enemy, #sun"
+                cursor="fuse: false"
+                change-sky-on-gaze>
+        <!-- Cursor-Ring -->
+        <a-entity geometry="primitive: ring; radiusInner: 0.005; radiusOuter: 0.008"
+                  material="color: white; shader: flat"
+                  position="0 0 -1"></a-entity>
+      </a-entity>
+    </a-entity>
+
+    <!-- Gelände-Modell -->
+    <a-entity gltf-model="#minecraftModel" position="0 0 0" scale="1 1 1"></a-entity>
+    <!-- Beleuchtung -->
+    <a-entity light="type: directional; intensity: 1.5" position="0 10 5"></a-entity>
+    <a-entity light="type: ambient; intensity: 0.5"></a-entity>
+    <!-- VR-Controller-Unterstützung -->
+    <a-entity laser-controls="hand: left"></a-entity>
+    <a-entity laser-controls="hand: right"></a-entity>
+  </a-scene>
+
+  <!-- Script für Multiplayer-Logik -->
+  <script src="./multiplayer.js" defer></script>
+</body>
+</html>
