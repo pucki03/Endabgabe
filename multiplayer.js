@@ -41,11 +41,11 @@ function updateScoreboard() {
   Object.entries(scores)
     .sort(([, aScore], [, bScore]) => bScore - aScore)
     .forEach(([id, score]) => {
-    const displayName = names[id] || `Spieler ${id}`;
-    const li = document.createElement('li');
-    li.textContent = `${displayName}: ${score} Punkte`;
-    list.appendChild(li);
-  });
+      const displayName = names[id] || `Spieler ${id}`;
+      const li = document.createElement('li');
+      li.textContent = `${displayName}: ${score} Punkte`;
+      list.appendChild(li);
+    });
 }
 
 function broadcastPose() {
@@ -78,8 +78,10 @@ function broadcastPose() {
   if (!hasChanged) return;
 
   lastPose = { position, rotation };
-  sendRequest('*broadcast-message*',
-    ['pose', clientId, [position.x, position.y, position.z], [rotation.x, rotation.y, rotation.z]]);
+  sendRequest(
+    '*broadcast-message*',
+    ['pose', clientId, [position.x, position.y, position.z], [rotation.x, rotation.y, rotation.z]]
+  );
 }
 
 socket.addEventListener('open', () => {
@@ -140,34 +142,40 @@ socket.addEventListener('message', (event) => {
       delete peers[incoming[1]];
       break;
 
-    case 'pose':
-      {
-        const [senderId, posArr, rotArr] = incoming.slice(1);
-        let rig = peers[senderId];
-        if (!rig) {
-          rig = document.createElement('a-entity');
-          rig.setAttribute('id', `user-${senderId}`);
-          rig.setAttribute('position', `${posArr[0]} ${posArr[1]} ${posArr[2]}`);
-          const head = document.createElement('a-entity');
-          head.setAttribute('id', `user-head-${senderId}`);
-          head.setAttribute('geometry', 'primitive: box; height:1.6; width:0.4; depth:0.2');
-          head.setAttribute('material', 'color: blue');
-          rig.appendChild(head);
-          const nameEl = document.createElement('a-entity');
-          nameEl.setAttribute('id', `name-${senderId}`);
-          nameEl.setAttribute('text', 'value: ' + (names[senderId] || `Spieler ${senderId}`) + '; align: center; width: 4; color: white;');
-          nameEl.setAttribute('position', '0 2 0');
-          rig.appendChild(nameEl);
-          document.querySelector('a-scene').appendChild(rig);
-          peers[senderId] = rig;
-        } else {
-          rig.setAttribute('position', `${posArr[0]} ${posArr[1]} ${posArr[2]}`);
-          rig.querySelector(`#user-head-${senderId}`)?.setAttribute(
-            'rotation', `${rotArr[0]} ${rotArr[1]} ${rotArr[2]}`
-          );
-        }
+    case 'pose': {
+      const [senderId, posArr, rotArr] = incoming.slice(1);
+      let rig = peers[senderId];
+      if (!rig) {
+        rig = document.createElement('a-entity');
+        rig.setAttribute('id', `user-${senderId}`);
+        rig.setAttribute('position', `${posArr[0]} ${posArr[1]} ${posArr[2]}`);
+
+        const head = document.createElement('a-entity');
+        head.setAttribute('id', `user-head-${senderId}`);
+        head.setAttribute('geometry', 'primitive: box; height:1.6; width:0.4; depth:0.2');
+        head.setAttribute('material', 'color: blue');
+        rig.appendChild(head);
+
+        const nameEl = document.createElement('a-entity');
+        nameEl.setAttribute('id', `name-${senderId}`);
+        nameEl.setAttribute(
+          'text',
+          'value: ' + (names[senderId] || `Spieler ${senderId}`) +
+          '; align: center; width: 4; color: white;'
+        );
+        nameEl.setAttribute('position', '0 2 0');
+        rig.appendChild(nameEl);
+
+        document.querySelector('a-scene').appendChild(rig);
+        peers[senderId] = rig;
+      } else {
+        rig.setAttribute('position', `${posArr[0]} ${posArr[1]} ${posArr[2]}`);
+        rig.querySelector(`#user-head-${senderId}`)?.setAttribute(
+          'rotation', `${rotArr[0]} ${rotArr[1]} ${rotArr[2]}`
+        );
       }
       break;
+    }
 
     case 'skybox-change':
       currentSkyboxIsNight = incoming[1];
@@ -180,56 +188,52 @@ socket.addEventListener('message', (event) => {
       );
       break;
 
-    case 'set-name':
-      {
-        const [nid, newName] = incoming.slice(1);
-        names[nid] = newName;
-        scores[nid] = scores[nid] || 0;
-        updateScoreboard();
-        const labelEl = document.querySelector(`#user-${nid} #name-${nid}`);
-        if (labelEl) {
-          labelEl.setAttribute('text', 'value: ' + newName + '; align: center; width: 4; color: white;');
-        }
+    case 'set-name': {
+      const [nid, newName] = incoming.slice(1);
+      names[nid] = newName;
+      scores[nid] = scores[nid] || 0;
+      updateScoreboard();
+      const labelEl = document.querySelector(`#user-${nid} #name-${nid}`);
+      if (labelEl) {
+        labelEl.setAttribute('text', 'value: ' + newName + '; align: center; width: 4; color: white;');
       }
       break;
+    }
 
-    case 'score-add':
-      {
-        const [id, points] = incoming.slice(1);
-        scores[id] = (scores[id] || 0) + points;
-        updateScoreboard();
-      }
+    case 'score-add': {
+      const [id, points] = incoming.slice(1);
+      scores[id] = (scores[id] || 0) + points;
+      updateScoreboard();
       break;
+    }
 
-    case 'enemy-spawn':
-      {
-        const [eid, ex, ey, ez] = incoming.slice(1);
-        if (defeatedEnemies.has(eid)) return;
-        if (!document.getElementById(eid)) {
-          const cube = document.createElement('a-box');
-          cube.setAttribute('id', eid);
-          cube.setAttribute('position', `${ex} ${ey} ${ez}`);
-          cube.setAttribute('geometry', 'primitive: box; height:2; width:2; depth:2');
-          cube.setAttribute('scale', '0.5 0.5 0.5');
-          cube.setAttribute('material', 'color: red; shader: standard');
-          cube.setAttribute('class', 'enemy');
-          document.querySelector('a-scene').appendChild(cube);
-          this.moveEnemy?.call(this, cube);
-        }
+    case 'enemy-spawn': {
+      const [eid, ex, ey, ez] = incoming.slice(1);
+      if (defeatedEnemies.has(eid)) return;
+      if (!document.getElementById(eid)) {
+        const cube = document.createElement('a-box');
+        cube.setAttribute('id', eid);
+        cube.setAttribute('position', `${ex} ${ey} ${ez}`);
+        cube.setAttribute('geometry', 'primitive: box; height:2; width:2; depth:2');
+        cube.setAttribute('scale', '0.5 0.5 0.5');
+        cube.setAttribute('material', 'color: red; shader: standard');
+        cube.setAttribute('class', 'enemy');
+        document.querySelector('a-scene').appendChild(cube);
+        this.moveEnemy?.call(this, cube);
       }
       break;
+    }
 
     case 'enemy-hit':
       removeEnemyById(incoming[1]);
       break;
 
-    case 'enemy-move':
-      {
-        const [moveId, mx, my, mz] = incoming.slice(1);
-        const moveTarget = document.getElementById(moveId);
-        if (moveTarget) moveTarget.setAttribute('position', `${mx} ${my} ${mz}`);
-      }
+    case 'enemy-move': {
+      const [moveId, mx, my, mz] = incoming.slice(1);
+      const moveTarget = document.getElementById(moveId);
+      if (moveTarget) moveTarget.setAttribute('position', `${mx} ${my} ${mz}`);
       break;
+    }
   }
 });
 
@@ -249,9 +253,14 @@ AFRAME.registerComponent('vertical-move', {
 
 AFRAME.registerComponent('change-sky-on-gaze', {
   init: function () {
-    this.sunVisible = false; this.timer = null; this.isNight = false;
+    this.sunVisible = false;
+    this.timer = null;
+    this.isNight = false;
     this.el.addEventListener('raycaster-intersection', evt => {
-      if (evt.detail.els.includes(document.querySelector('#sun')) && !this.sunVisible) {
+      if (
+        evt.detail.els.includes(document.querySelector('#sun')) &&
+        !this.sunVisible
+      ) {
         this.sunVisible = true;
         this.timer = setTimeout(() => {
           const nightSky = document.querySelector('#skyNight');
@@ -268,7 +277,10 @@ AFRAME.registerComponent('change-sky-on-gaze', {
       }
     });
     this.el.addEventListener('raycaster-intersection-cleared', () => {
-      if (this.sunVisible) { this.sunVisible = false; clearTimeout(this.timer); }
+      if (this.sunVisible) {
+        this.sunVisible = false;
+        clearTimeout(this.timer);
+      }
     });
   }
 });
@@ -276,10 +288,9 @@ AFRAME.registerComponent('change-sky-on-gaze', {
 AFRAME.registerComponent('game-manager', {
   init: function () {
     this.el.sceneEl.addEventListener('ws-connected', () => {
-      if (parseInt(clientId, 10) === 0) {
-        this.spawnEnemies();
-        setInterval(() => this.spawnEnemies(), 5000);
-      }
+      // Jeder Client spawnt jetzt Enemies
+      this.spawnEnemies();
+      setInterval(() => this.spawnEnemies(), 5000);
     });
     const sceneEl = this.el.sceneEl;
     sceneEl.addEventListener('click', () => this.handleShoot());
@@ -290,14 +301,15 @@ AFRAME.registerComponent('game-manager', {
 
   spawnEnemies: function () {
     const scene = document.querySelector('a-scene');
+    const baseY = 1.4;
+    console.log('[GameManager] Spawning enemies around Y ≈', baseY);
     for (let i = 0; i < 5; i++) {
       const cube = document.createElement('a-box');
       const id = `enemy-${Date.now()}-${Math.random()}`;
-      const x = (Math.random() - 0.5) * 100;
-      const z = (Math.random() - 0.5) * 100;
-      const baseY = 140;
-      const deltaY = (Math.random() - 0.5) * 20;     
-      const y = Math.max(baseY + deltaY, 130); 
+      const deltaY = (Math.random() - 0.5) * 0.4;
+      const y = Math.max(baseY + deltaY, 1);
+      const x = (Math.random() - 0.5) * 10;
+      const z = (Math.random() - 0.5) * 10;
       cube.setAttribute('geometry', 'primitive: box; height:2; width:2; depth:2');
       cube.setAttribute('scale', '0.5 0.5 0.5');
       cube.setAttribute('material', 'color: red; shader: standard');
@@ -305,7 +317,13 @@ AFRAME.registerComponent('game-manager', {
       cube.setAttribute('class', 'enemy');
       cube.setAttribute('id', id);
       scene.appendChild(cube);
-      cube.object3D.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingBox(); o.geometry.computeBoundingSphere(); o.frustumCulled = false; } });
+      cube.object3D.traverse(o => {
+        if (o.isMesh) {
+          o.geometry.computeBoundingBox();
+          o.geometry.computeBoundingSphere();
+          o.frustumCulled = false;
+        }
+      });
       this.moveEnemy(cube);
       sendRequest('*broadcast-message*', ['enemy-spawn', id, x, y, z]);
     }
@@ -336,7 +354,12 @@ AFRAME.registerComponent('game-manager', {
     const ray = new THREE.Raycaster(origin, dir);
     const enemies = [];
     document.querySelectorAll('.enemy').forEach(el => {
-      el.object3D.traverse(o => { if (o.isMesh) { o.el = el; enemies.push(o); } });
+      el.object3D.traverse(o => {
+        if (o.isMesh) {
+          o.el = el;
+          enemies.push(o);
+        }
+      });
     });
 
     const intersects = ray.intersectObjects(enemies, true);
@@ -344,7 +367,7 @@ AFRAME.registerComponent('game-manager', {
       const el = intersects[0].object.el;
       if (el.classList.contains('enemy') && !defeatedEnemies.has(el.id)) {
         defeatedEnemies.add(el.id);
-        playHitSound(); // Soundeffekt bei Treffer abspielen
+        playHitSound();
         el.setAttribute('color', 'white');
         setTimeout(() => el.setAttribute('color', 'red'), 100);
         sendRequest('*broadcast-message*', ['enemy-hit', el.id]);
@@ -368,6 +391,6 @@ window.removeEnemyById = removeEnemyById;
 
 const keys = {};
 window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+window.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
 window.sendRequest = sendRequest;
 Object.defineProperty(window, 'clientId', { get: () => clientId });
