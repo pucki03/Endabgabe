@@ -236,6 +236,8 @@ socket.addEventListener('message', ({ data }) => {
 socket.addEventListener('close', () => console.warn('[WS] Verbindung geschlossen'));
 socket.addEventListener('error', err => console.error('[WS] Fehler:', err));
 
+// --- A-Frame Components ---
+
 AFRAME.registerComponent('vertical-move', {
   schema: { speed: { type: 'number', default: 0.2 } },
   tick() {
@@ -295,13 +297,20 @@ AFRAME.registerComponent('game-manager', {
 
   spawnEnemies() {
     const scene = document.querySelector('a-scene');
-    // jetzt ca. 3 m plus/minus 1 m – also zwischen 2 m und 4 m
-    const baseY = 3.0;
-    console.log('[GameManager] Spawning at Y≈', baseY);
+    // Höhe an der Spieler-Kopfhöhe orientieren
+    const headEl = document.getElementById('head');
+    let baseY = 1.6; // Fallback, falls kein Head-Objekt
+    if (headEl?.object3D) {
+      const worldPos = new THREE.Vector3();
+      headEl.object3D.getWorldPosition(worldPos);
+      baseY = worldPos.y;
+    }
+    console.log('[GameManager] Spawning at player height ≈', baseY);
     for (let i = 0; i < 5; i++) {
       const cube = document.createElement('a-box');
       const id = `enemy-${Date.now()}-${Math.random()}`;
-      const y = baseY + (Math.random() - 0.5) * 2.0;
+      // Spawn mit leichter Streuung um Kopf-Höhe ±0.5 m
+      const y = baseY + (Math.random() - 0.5) * 1.0;
       const x = (Math.random() - 0.5) * 10;
       const z = (Math.random() - 0.5) * 10;
       cube.setAttribute('geometry', 'primitive: box; height:2; width:2; depth:2');
@@ -348,7 +357,7 @@ AFRAME.registerComponent('game-manager', {
       el.object3D.traverse(o => { if (o.isMesh) { o.el = el; enemies.push(o); } })
     );
     const hits = ray.intersectObjects(enemies, true);
-    if (hits.length === 0) return;
+    if (!hits.length) return;
     const el = hits[0].object.el;
     if (!defeatedEnemies.has(el.id)) {
       defeatedEnemies.add(el.id);
