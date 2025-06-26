@@ -5,7 +5,6 @@ const roomName = 'minecraft-vr-room';
 let clientId = null;
 let clientCount = 0;
 let peers = {};
-let currentSkyboxIsNight = false;
 let scores = {};
 const defeatedEnemies = new Set();
 const names = {};
