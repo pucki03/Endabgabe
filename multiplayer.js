@@ -49,7 +49,6 @@ function updateScoreboard() {
     });
 }
 
-// Pose-Broadcasting (Head-Tracking)
 function broadcastPose() {
   const head = document.getElementById('head');
   if (!head?.object3D) return;
@@ -64,10 +63,9 @@ function broadcastPose() {
     y: THREE.MathUtils.radToDeg(worldRot.y),
     z: THREE.MathUtils.radToDeg(worldRot.z)
   };
-  // Nur senden, wenn sich was geändert hat
   const changed = !lastPose.position ||
-    ['x','y','z'].some(axis => Math.abs(position[axis] - lastPose.position[axis]) > 0.01) ||
-    ['x','y','z'].some(axis => Math.abs(rotation[axis] - lastPose.rotation[axis]) > 1);
+    ['x','y','z'].some(a => Math.abs(position[a] - lastPose.position[a]) > 0.01) ||
+    ['x','y','z'].some(a => Math.abs(rotation[a] - lastPose.rotation[a]) > 1);
   if (!changed) return;
   lastPose = { position, rotation };
   sendRequest(
@@ -94,12 +92,11 @@ socket.addEventListener('message', ({ data }) => {
     return;
   }
   if (DEBUG) console.log('[WS Nachricht]', incoming);
-
   const [type, ...args] = incoming;
+
   switch (type) {
     case '*client-id*': {
       clientId = args[0];
-      // Pose senden und Namen abfragen
       setInterval(broadcastPose, 100);
       const playerName = prompt("Bitte gib deinen Namen ein:");
       names[clientId] = playerName;
@@ -116,23 +113,22 @@ socket.addEventListener('message', ({ data }) => {
 
     case '*client-enter*': {
       const newId = args[0];
-      if (newId === clientId) break; // ignore self
-      // 1) Skybox-Status an neuen Client senden
+      if (newId === clientId) break;
+      // Skybox-Status
       sendRequest('*broadcast-message*', ['skybox-change', currentSkyboxIsNight]);
-      // 2) Alle bisherigen Enemies spawnen
+      // Enemies
       document.querySelectorAll('.enemy').forEach(enemy => {
         const { x, y, z } = enemy.getAttribute('position');
         sendRequest('*broadcast-message*', ['enemy-spawn', enemy.id, x, y, z]);
       });
-      // 3) Namen aller Clients synchronisieren
+      // Namen
       Object.entries(names).forEach(([id, name]) => {
         sendRequest('*broadcast-message*', ['set-name', id, name]);
       });
-      // 4) Scores aller Clients synchronisieren (setzt statt addiert)
+      // Scores
       Object.entries(scores).forEach(([id, score]) => {
         sendRequest('*broadcast-message*', ['set-score', id, score]);
       });
-      // 5) Eigene Pose
       broadcastPose();
       break;
     }
@@ -151,13 +147,11 @@ socket.addEventListener('message', ({ data }) => {
         rig = document.createElement('a-entity');
         rig.id = `user-${senderId}`;
         rig.setAttribute('position', `${posArr[0]} ${posArr[1]} ${posArr[2]}`);
-        // Kopf
         const head = document.createElement('a-entity');
         head.id = `user-head-${senderId}`;
         head.setAttribute('geometry', 'primitive: box; height:1.6; width:0.4; depth:0.2');
         head.setAttribute('material', 'color: blue');
         rig.appendChild(head);
-        // Name
         const nameEl = document.createElement('a-entity');
         nameEl.id = `name-${senderId}`;
         nameEl.setAttribute('text', `value: ${names[senderId]||`Spieler ${senderId}`}; align:center; width:4; color:white`);
@@ -242,7 +236,6 @@ socket.addEventListener('message', ({ data }) => {
 socket.addEventListener('close', () => console.warn('[WS] Verbindung geschlossen'));
 socket.addEventListener('error', err => console.error('[WS] Fehler:', err));
 
-// --- A-Frame Components ---
 AFRAME.registerComponent('vertical-move', {
   schema: { speed: { type: 'number', default: 0.2 } },
   tick() {
@@ -291,7 +284,6 @@ AFRAME.registerComponent('change-sky-on-gaze', {
 AFRAME.registerComponent('game-manager', {
   init() {
     this.el.sceneEl.addEventListener('ws-connected', () => {
-      // Jeder Client spawnt jetzt
       this.spawnEnemies();
       setInterval(() => this.spawnEnemies(), 5000);
     });
@@ -303,14 +295,15 @@ AFRAME.registerComponent('game-manager', {
 
   spawnEnemies() {
     const scene = document.querySelector('a-scene');
-    const baseY = 1.4;  // 1,4 m Höhe statt 140!
+    // jetzt ca. 3 m plus/minus 1 m – also zwischen 2 m und 4 m
+    const baseY = 3.0;
     console.log('[GameManager] Spawning at Y≈', baseY);
     for (let i = 0; i < 5; i++) {
       const cube = document.createElement('a-box');
       const id = `enemy-${Date.now()}-${Math.random()}`;
-      const y = Math.max(baseY + (Math.random()-0.5)*0.4, 1);
-      const x = (Math.random()-0.5)*10;
-      const z = (Math.random()-0.5)*10;
+      const y = baseY + (Math.random() - 0.5) * 2.0;
+      const x = (Math.random() - 0.5) * 10;
+      const z = (Math.random() - 0.5) * 10;
       cube.setAttribute('geometry', 'primitive: box; height:2; width:2; depth:2');
       cube.setAttribute('scale', '0.5 0.5 0.5');
       cube.setAttribute('material', 'color: red; shader: standard');
@@ -334,9 +327,9 @@ AFRAME.registerComponent('game-manager', {
     const iv = setInterval(() => {
       const pos = cube.getAttribute('position');
       const newPos = {
-        x: pos.x + (Math.random()-0.5)*4,
+        x: pos.x + (Math.random() - 0.5) * 4,
         y: pos.y,
-        z: pos.z + (Math.random()-0.5)*4
+        z: pos.z + (Math.random() - 0.5) * 4
       };
       cube.setAttribute('position', newPos);
       sendRequest('*broadcast-message*', ['enemy-move', cube.id, newPos.x, newPos.y, newPos.z]);
@@ -364,7 +357,7 @@ AFRAME.registerComponent('game-manager', {
       setTimeout(() => el.setAttribute('color', 'red'), 100);
       sendRequest('*broadcast-message*', ['enemy-hit', el.id]);
       sendRequest('*broadcast-message*', ['score-add', clientId, 100]);
-      scores[clientId] = (scores[clientId]||0) + 100;
+      scores[clientId] = (scores[clientId] || 0) + 100;
       updateScoreboard();
       removeEnemyById(el.id);
     }
