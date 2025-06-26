@@ -23,7 +23,7 @@ let clientCount = 0;
 // Map von Peer-ID zu den A-Frame-Entity-Rigs anderer Spieler
 let peers = {};
 // Aktueller Zustand der Skybox (Tag oder Nacht)
-//let currentSkyboxIsNight = false;
+let currentSkyboxIsNight = false;
 // Scoreboard-Daten: Map von Spieler-ID zu Punkten
 let scores = {};
 // Set, um bereits besiegte Gegner zu merken
