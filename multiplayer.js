@@ -78,6 +78,8 @@ socket.addEventListener('open', () => {
   sendRequest('*enter-room*', roomName);
   sendRequest('*subscribe-client-count*');
   sendRequest('*subscribe-client-enter-exit*');
+  // ask existing clients to send current skybox state
+  sendRequest('*broadcast-message*', ['request-skybox', clientId]);
   setInterval(() => sendRequest('*ping*'), 30000);
 });
 
@@ -200,6 +202,14 @@ socket.addEventListener('message', ({ data }) => {
       const [id, pts] = args;
       scores[id] = pts;
       updateScoreboard();
+      break;
+    }
+    case 'request-skybox': {
+      const [targetId] = args;
+      // only existing clients respond
+      if (targetId !== clientId) {
+        sendRequest('*broadcast-message*', ['skybox-change', currentSkyboxIsNight]);
+      }
       break;
     }
 
